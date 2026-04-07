@@ -49,6 +49,16 @@ mister-ai-subtitle/
 
 ## 설치
 
+### 0단계 — 한글 OSD 빌드 설치 (필수)
+
+OSD에 한국어 자막을 표시하려면 한글 폰트가 적용된 Main_MiSTer 빌드가 필요합니다.
+
+👉 **[devilcg/Main_MiSTer](https://github.com/devilcg/Main_MiSTer)** — 한글 OSD 지원 포크
+
+릴리즈 페이지에서 `MiSTer` 바이너리를 받아 SD카드에 적용하거나, 직접 빌드하세요.
+
+---
+
 ### 1단계 — Main_MiSTer 빌드 (C++ 패치)
 
 `mister-src/` 파일 2개를 Main_MiSTer 소스 루트에 복사합니다:
@@ -152,8 +162,8 @@ API Key는 MiSTer 내부(`/media/fat/Scripts/subtitle_config.json`)에만 저장
 
 ## 요구 사항
 
-- MiSTer FPGA (ARM Linux, Python 3.6+)
-- Main_MiSTer 소스 빌드 환경
+- MiSTer FPGA (ARM Linux, Python 3 기본 포함)
+- **[MiSTer 한글 OSD](https://github.com/devilcg/Main_MiSTer)** — 한국어 자막을 OSD에 표시하려면 한글 폰트 지원 빌드가 필요합니다
 - 같은 WiFi의 스마트폰 (Chrome / Safari)
 - Anthropic 또는 OpenAI API Key
 
