@@ -76,25 +76,7 @@ subtitle_poll();
 
 ---
 
-### 2단계 — Python 3 확인
-
-MiSTer에 SSH 접속 후 확인:
-
-```bash
-python3 --version
-```
-
-없으면:
-
-```bash
-apt-get update && apt-get install -y python3
-```
-
-> 최근 MiSTer 이미지에는 대부분 Python 3가 포함되어 있습니다.
-
----
-
-### 3단계 — 파일 복사
+### 2단계 — 파일 복사
 
 SD카드 경로에 복사:
 
@@ -107,7 +89,7 @@ SD카드 경로에 복사:
 
 ---
 
-### 4단계 — 부팅 시 자동 시작
+### 3단계 — 부팅 시 자동 시작
 
 `/media/fat/linux/user-startup.sh`에 추가:
 
@@ -117,7 +99,7 @@ python3 /media/fat/Scripts/subtitle_server.py &
 
 ---
 
-### 5단계 — API Key 설정
+### 4단계 — API Key 설정
 
 MiSTer와 폰이 같은 WiFi에 연결된 상태에서:
 
@@ -160,9 +142,6 @@ API Key는 MiSTer 내부(`/media/fat/Scripts/subtitle_config.json`)에만 저장
 
 **SSL 오류 (`CERTIFICATE_VERIFY_FAILED`)**
 - `subtitle_server.py`는 MiSTer ARM Linux의 CA 번들 부재를 자동으로 우회합니다
-
-**Python not found**
-- 2단계의 Python 3 설치 절차를 진행하세요
 
 **번역 없이 `found: false` 만 반환**
 - 이미지가 너무 어둡거나 텍스트가 작을 수 있습니다
