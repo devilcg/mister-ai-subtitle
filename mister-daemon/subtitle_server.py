@@ -16,10 +16,16 @@ import socket
 import os
 import json
 import mimetypes
+import ssl
 import urllib.request
 import urllib.error
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
+
+# MiSTer ARM Linux는 CA 번들이 없는 경우가 있으므로 SSL 검증 비활성화
+_SSL_CTX = ssl.create_default_context()
+_SSL_CTX.check_hostname = False
+_SSL_CTX.verify_mode = ssl.CERT_NONE
 
 UNIX_SOCK   = "/tmp/mister_subtitle.sock"
 HTTP_PORT   = 18765
@@ -103,7 +109,7 @@ def call_claude(api_key: str, image_b64: str) -> dict:
         method="POST",
     )
 
-    with urllib.request.urlopen(req, timeout=15) as resp:
+    with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
         body = json.loads(resp.read())
 
     text = body["content"][0]["text"].strip()
@@ -138,7 +144,7 @@ def call_openai(api_key: str, image_b64: str) -> dict:
         method="POST",
     )
 
-    with urllib.request.urlopen(req, timeout=15) as resp:
+    with urllib.request.urlopen(req, timeout=15, context=_SSL_CTX) as resp:
         body = json.loads(resp.read())
 
     text = body["choices"][0]["message"]["content"].strip()

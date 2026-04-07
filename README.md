@@ -1,9 +1,7 @@
 # MiSTer AI 실시간 자막 번역
 
 레트로 게임의 **일본어 자막을 실시간으로 한국어로 번역**해 MiSTer OSD에 표시합니다.
-폰 카메라로 TV 화면을 찍으면 Claude 또는 OpenAI가 번역 → WiFi로 MiSTer에 전송 → 게임 화면 위에 자막이 뜹니다.
-
-![구조도](https://i.imgur.com/placeholder.png)
+폰 카메라로 TV 화면을 찍으면 AI가 번역 → WiFi로 MiSTer에 전송 → 게임 화면 위에 자막이 5초 표시됩니다.
 
 ---
 
@@ -16,16 +14,17 @@
 POST /translate (base64)  →  subtitle_server.py (:18765)
                                     ↓
                             Claude / OpenAI Vision API
+                            (API Key는 MiSTer에만 저장)
                                     ↓
                             /tmp/mister_subtitle.sock
                                     ↓
-                            Main_MiSTer subtitle_poll()
+                            subtitle_poll() in main loop
                                     ↓
                             Info() → OSD 자막 5초 표시
 ```
 
-- **폰**: 카메라 프레임을 1.5초마다 캡처해 MiSTer로 전송만 함
-- **MiSTer**: AI API 호출 + OSD 표시 모두 처리 (API Key가 MiSTer에만 보관)
+- **폰**: 카메라 프레임만 전송 (API Key 없음, CORS 문제 없음)
+- **MiSTer**: AI API 호출 + OSD 표시 모두 처리
 - **AI 제공자**: Claude Haiku 또는 OpenAI GPT-4o-mini 선택 가능
 
 ---
@@ -34,12 +33,12 @@ POST /translate (base64)  →  subtitle_server.py (:18765)
 
 ```
 mister-ai-subtitle/
-├── mister-src/          ← Main_MiSTer에 추가할 C++ 소스
+├── mister-src/              ← Main_MiSTer에 추가할 C++ 소스
 │   ├── subtitle.h
 │   └── subtitle.cpp
-├── mister-daemon/       ← MiSTer SD카드에 복사할 Python 서버
+├── mister-daemon/           ← MiSTer SD카드에 복사할 Python 서버
 │   └── subtitle_server.py
-└── phone-app/           ← 폰 브라우저에서 여는 웹앱 (서버가 자동 서빙)
+└── phone-app/               ← 폰 브라우저 웹앱 (서버가 자동 서빙)
     ├── index.html
     ├── app.js
     └── manifest.json
@@ -51,7 +50,7 @@ mister-ai-subtitle/
 
 ### 1단계 — Main_MiSTer 빌드 (C++ 패치)
 
-`mister-src/` 안의 파일 2개를 Main_MiSTer 소스 루트에 복사합니다.
+`mister-src/` 파일 2개를 Main_MiSTer 소스 루트에 복사합니다:
 
 ```bash
 cp mister-src/subtitle.h   /path/to/Main_MiSTer/
@@ -61,45 +60,56 @@ cp mister-src/subtitle.cpp /path/to/Main_MiSTer/
 `main.cpp`에 3줄 추가합니다:
 
 ```cpp
-// 상단 include 목록에 추가
+// ① 상단 include 목록에 추가
 #include "subtitle.h"
 
-// subtitle_init() — offload_start() 바로 아래에 추가
+// ② subtitle_init() — offload_start() 바로 아래
 subtitle_init();
 
-// subtitle_poll() — 메인 루프 안, OsdUpdate() 앞에 추가
+// ③ subtitle_poll() — 메인 루프 안, OsdUpdate() 앞
 subtitle_poll();
 ```
 
-그 후 평소대로 빌드하고 MiSTer에 올립니다.
+평소대로 빌드 후 MiSTer에 올립니다.
 
-> **참고**: `Info()` 함수는 `menu.cpp`에 이미 구현되어 있습니다.
+> `Info()` 함수는 `menu.cpp`에 이미 있습니다. 게임 실행 중(OSD 닫힌 상태)에만 자막이 표시되며, OSD 메뉴를 열면 자막은 숨겨집니다.
 
 ---
 
-### 2단계 — Python 서버 설치
+### 2단계 — Python 3 확인
 
-MiSTer SD카드에 복사:
+MiSTer에 SSH 접속 후 확인:
+
+```bash
+python3 --version
+```
+
+없으면:
+
+```bash
+apt-get update && apt-get install -y python3
+```
+
+> 최근 MiSTer 이미지에는 대부분 Python 3가 포함되어 있습니다.
+
+---
+
+### 3단계 — 파일 복사
+
+SD카드 경로에 복사:
 
 ```
 /media/fat/Scripts/subtitle_server.py
-```
-
-`phone-app/` 폴더도 같이 복사 (서버가 정적 파일 서빙):
-
-```
 /media/fat/Scripts/phone-app/index.html
 /media/fat/Scripts/phone-app/app.js
 /media/fat/Scripts/phone-app/manifest.json
 ```
 
-> 실제 배포 경로는 `subtitle_server.py` 상단의 `CONFIG_FILE`, `STATIC_DIR` 경로를 참고하세요.
-
 ---
 
-### 3단계 — 부팅 시 자동 시작
+### 4단계 — 부팅 시 자동 시작
 
-MiSTer의 `/media/fat/linux/user-startup.sh`에 추가:
+`/media/fat/linux/user-startup.sh`에 추가:
 
 ```bash
 python3 /media/fat/Scripts/subtitle_server.py &
@@ -107,28 +117,27 @@ python3 /media/fat/Scripts/subtitle_server.py &
 
 ---
 
-### 4단계 — API Key 설정
+### 5단계 — API Key 설정
 
 MiSTer와 폰이 같은 WiFi에 연결된 상태에서:
 
 1. 폰 브라우저에서 `http://[MiSTer IP]:18765` 접속
 2. **설정 탭** 열기
-3. MiSTer IP 입력 → **확인** 버튼
-4. 사용할 AI 선택 (`🟣 Claude` 또는 `🟢 OpenAI`)
+3. MiSTer IP 입력 → **확인** 버튼으로 연결 테스트
+4. AI 선택 (`🟣 Claude` 또는 `🟢 OpenAI`)
 5. 해당 API Key 입력 → **저장**
 
-API Key는 MiSTer에만 저장됩니다 (`/media/fat/Scripts/subtitle_config.json`).
+API Key는 MiSTer 내부(`/media/fat/Scripts/subtitle_config.json`)에만 저장됩니다.
 
 ---
 
 ## 사용법
 
-1. MiSTer와 폰이 같은 WiFi
-2. MiSTer 부팅 → 서버 자동 시작
-3. 폰 브라우저에서 `http://[MiSTer IP]:18765` 접속
-4. **카메라 탭** → ▶ 시작
-5. 카메라를 TV 화면에 향하기
-6. 일본어 감지 시 MiSTer OSD에 한국어 자막 5초 표시
+1. MiSTer 부팅 → 서버 자동 시작
+2. 폰 브라우저에서 `http://[MiSTer IP]:18765` 접속
+3. **카메라 탭** → ▶ 시작
+4. 카메라를 TV 화면에 향하기
+5. 일본어 감지 시 MiSTer OSD에 한국어 자막 5초 표시
 
 ---
 
@@ -143,10 +152,29 @@ API Key는 MiSTer에만 저장됩니다 (`/media/fat/Scripts/subtitle_config.jso
 
 ---
 
+## 트러블슈팅
+
+**자막이 안 보여요**
+- OSD 메뉴가 열려 있으면 자막이 표시되지 않습니다 (정상 동작)
+- MiSTer IP가 올바른지, 서버가 실행 중인지 확인
+
+**SSL 오류 (`CERTIFICATE_VERIFY_FAILED`)**
+- `subtitle_server.py`는 MiSTer ARM Linux의 CA 번들 부재를 자동으로 우회합니다
+
+**Python not found**
+- 2단계의 Python 3 설치 절차를 진행하세요
+
+**번역 없이 `found: false` 만 반환**
+- 이미지가 너무 어둡거나 텍스트가 작을 수 있습니다
+- 캡처 간격을 늘려보세요 (설정 탭 → 2.5초 / 4초)
+
+---
+
 ## 요구 사항
 
 - MiSTer FPGA (ARM Linux, Python 3.6+)
-- 같은 WiFi의 스마트폰 (Chrome/Safari)
+- Main_MiSTer 소스 빌드 환경
+- 같은 WiFi의 스마트폰 (Chrome / Safari)
 - Anthropic 또는 OpenAI API Key
 
 ---
