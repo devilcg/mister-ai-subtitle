@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+  <title>MiSTer 자막 번역</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1a1a2e">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #1a1a2e;
+      color: #eee;
+      font-family: -apple-system, sans-serif;
+      min-height: 100dvh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── 탭 바 ── */
+    .tab-bar {
+      display: flex;
+      background: #16213e;
+      border-bottom: 1px solid #0f3460;
+    }
+    .tab-bar button {
+      flex: 1;
+      padding: 12px;
+      background: none;
+      border: none;
+      color: #666;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-bar button.tab-active {
+      color: #e94560;
+      border-bottom-color: #e94560;
+    }
+
+    /* ── 카메라 탭 ── */
+    #viewCamera {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #setup {
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    label { font-size: 12px; color: #888; margin-bottom: 2px; display: block; }
+    input, select {
+      width: 100%;
+      padding: 10px 12px;
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      color: #eee;
+      font-size: 14px;
+      outline: none;
+    }
+    input:focus, select:focus { border-color: #e94560; }
+
+    #viewfinder {
+      flex: 1;
+      position: relative;
+      background: #000;
+      overflow: hidden;
+      min-height: 200px;
+    }
+    video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    canvas { display: none; }
+
+    #overlay {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 10px 14px 14px;
+      background: linear-gradient(transparent, rgba(0,0,0,.85));
+    }
+    #translation {
+      font-size: 15px;
+      font-weight: 600;
+      color: #fff;
+      text-shadow: 0 1px 4px #000;
+      min-height: 22px;
+      word-break: keep-all;
+    }
+    #original {
+      font-size: 12px;
+      color: #aaa;
+      margin-top: 4px;
+      min-height: 16px;
+    }
+
+    #controls {
+      padding: 12px 16px;
+      display: flex;
+      gap: 10px;
+      background: #16213e;
+      border-top: 1px solid #0f3460;
+    }
+    button {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    button:active { opacity: .7; }
+    #btnStart  { background: #e94560; color: #fff; }
+    #btnStop   { background: #333; color: #aaa; }
+    #btnStop.active { background: #0f3460; color: #eee; }
+
+    #status {
+      padding: 8px 16px;
+      font-size: 12px;
+      color: #666;
+      background: #16213e;
+      text-align: center;
+      border-top: 1px solid #0f3460;
+    }
+    #status.ok  { color: #4ade80; }
+    #status.err { color: #f87171; }
+
+    /* ── 설정 탭 ── */
+    #viewConfig {
+      flex: 1;
+      padding: 20px 16px;
+      display: none;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .config-section h2 {
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .config-section .row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .config-section .row input { flex: 1; }
+    .config-section .row button {
+      flex: none;
+      padding: 10px 14px;
+      font-size: 13px;
+      background: #0f3460;
+      color: #eee;
+      border-radius: 8px;
+    }
+    .btn-primary {
+      background: #e94560 !important;
+      color: #fff !important;
+    }
+    .config-status {
+      font-size: 12px;
+      color: #666;
+      min-height: 18px;
+      text-align: center;
+    }
+    .config-status.ok  { color: #4ade80; }
+    .config-status.err { color: #f87171; }
+
+    .provider-btns {
+      display: flex;
+      gap: 10px;
+    }
+    .provider-btn {
+      flex: 1;
+      padding: 12px;
+      background: #16213e;
+      border: 2px solid #0f3460;
+      border-radius: 10px;
+      color: #666;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .provider-btn.provider-active {
+      border-color: #e94560;
+      color: #eee;
+      background: #1a1a2e;
+    }
+    .key-status {
+      font-size: 10px;
+      color: #4ade80;
+      font-weight: 400;
+      text-transform: none;
+    }
+
+    .note {
+      font-size: 11px;
+      color: #555;
+      line-height: 1.6;
+      padding: 10px 12px;
+      background: #16213e;
+      border-radius: 8px;
+      border-left: 3px solid #0f3460;
+    }
+
+    /* ── 공통 ── */
+    header {
+      padding: 14px 16px 10px;
+      background: #16213e;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    header h1 { font-size: 16px; font-weight: 700; color: #e94560; }
+    header span { font-size: 12px; color: #888; margin-left: auto; }
+
+    .dot {
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: #e94560;
+      margin-right: 6px;
+      animation: pulse 1s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; }
+      50%      { opacity: .3; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🎮 MiSTer 자막</h1>
+  <span id="timerLabel">-</span>
+</header>
+
+<!-- 탭 바 -->
+<div class="tab-bar">
+  <button id="tabCamera" class="tab-active" onclick="switchTab('camera')">📷 카메라</button>
+  <button id="tabConfig" onclick="switchTab('config')">⚙️ 설정</button>
+</div>
+
+<!-- 카메라 탭 -->
+<div id="viewCamera">
+  <div id="setup">
+    <div>
+      <label>MiSTer IP 주소</label>
+      <input id="misterIp" type="text" placeholder="192.168.0.xxx" inputmode="decimal">
+    </div>
+    <div>
+      <label>캡처 간격</label>
+      <select id="interval">
+        <option value="1500">1.5초 (권장)</option>
+        <option value="2500">2.5초</option>
+        <option value="4000">4초 (느린 게임)</option>
+      </select>
+    </div>
+  </div>
+
+  <div id="viewfinder">
+    <video id="video" autoplay playsinline muted></video>
+    <canvas id="canvas"></canvas>
+    <div id="overlay">
+      <div id="translation">카메라를 TV 화면에 향하세요</div>
+      <div id="original"></div>
+    </div>
+  </div>
+
+  <div id="controls">
+    <button id="btnStart" onclick="startCapture()">▶ 시작</button>
+    <button id="btnStop"  onclick="stopCapture()">■ 정지</button>
+  </div>
+
+  <div id="status">대기 중</div>
+</div>
+
+<!-- 설정 탭 -->
+<div id="viewConfig">
+
+  <div class="config-section">
+    <h2>MiSTer 연결</h2>
+    <div class="row">
+      <input id="misterIpConfig" type="text" placeholder="192.168.0.xxx" inputmode="decimal"
+             oninput="document.getElementById('misterIp').value=this.value;localStorage.setItem('misterIp',this.value.trim())">
+      <button onclick="checkConfig()">확인</button>
+    </div>
+    <div id="configStatus" class="config-status"></div>
+  </div>
+
+  <div class="config-section">
+    <h2>AI 제공자</h2>
+    <div class="provider-btns">
+      <button id="btnProviderClaude" class="provider-btn provider-active" onclick="selectProvider('claude')">
+        🟣 Claude
+      </button>
+      <button id="btnProviderOpenAI" class="provider-btn" onclick="selectProvider('openai')">
+        🟢 OpenAI
+      </button>
+    </div>
+  </div>
+
+  <div class="config-section">
+    <h2>Claude API Key <span class="key-status" id="claudeStatus"></span></h2>
+    <div class="row">
+      <input id="claudeKeyInput" type="password" placeholder="sk-ant-...">
+      <button onclick="saveKey('claude')">저장</button>
+    </div>
+  </div>
+
+  <div class="config-section">
+    <h2>OpenAI API Key <span class="key-status" id="openaiStatus"></span></h2>
+    <div class="row">
+      <input id="openaiKeyInput" type="password" placeholder="sk-...">
+      <button onclick="saveKey('openai')">저장</button>
+    </div>
+  </div>
+
+  <div id="configStatus" class="config-status"></div>
+
+  <div class="note">
+    API Key는 MiSTer에만 저장됩니다 (폰에 저장 안 됨).<br><br>
+    처음 사용 시:<br>
+    1. MiSTer IP 입력 후 <b>확인</b><br>
+    2. 사용할 AI 선택 후 API Key 저장<br>
+    3. 카메라 탭에서 ▶ 시작
+  </div>
+
+</div>
+
+<script>
+  // 설정 탭 IP 동기화
+  document.getElementById('misterIpConfig').value = localStorage.getItem('misterIp') || '';
+</script>
+<script src="app.js"></script>
+</body>
+</html>
