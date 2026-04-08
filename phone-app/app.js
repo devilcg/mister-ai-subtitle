@@ -48,7 +48,7 @@ function selectProvider(p) {
 
   const ip = document.getElementById('misterIp').value.trim();
   if (!ip) return;
-  fetch(`http://${ip}:18765/config`, {
+  fetch(`https://${ip}:18765/config`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ provider: p }),
@@ -66,7 +66,7 @@ async function saveKey(provider) {
   payload[provider === 'claude' ? 'claude_api_key' : 'openai_api_key'] = key;
 
   try {
-    const res = await fetch(`http://${ip}:18765/config`, {
+    const res = await fetch(`https://${ip}:18765/config`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -91,7 +91,7 @@ async function checkConfig() {
   saveSettings();
 
   try {
-    const res = await fetch(`http://${ip}:18765/config`);
+    const res = await fetch(`https://${ip}:18765/config`);
     if (!res.ok) { setConfigStatus('조회 실패: ' + res.status, 'err'); return; }
 
     const data = await res.json();
@@ -149,7 +149,7 @@ async function translateFrame(base64) {
   const ip = document.getElementById('misterIp').value.trim();
   if (!ip) throw new Error('MiSTer IP 없음');
 
-  const res = await fetch(`http://${ip}:18765/translate`, {
+  const res = await fetch(`https://${ip}:18765/translate`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image: base64 }),

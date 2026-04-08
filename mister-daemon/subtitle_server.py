@@ -17,6 +17,7 @@ import os
 import json
 import mimetypes
 import ssl
+import subprocess
 import urllib.request
 import urllib.error
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -26,6 +27,21 @@ from pathlib import Path
 _SSL_CTX = ssl.create_default_context()
 _SSL_CTX.check_hostname = False
 _SSL_CTX.verify_mode = ssl.CERT_NONE
+
+CERT_FILE = Path("/media/fat/Scripts/subtitle_cert.pem")
+KEY_FILE  = Path("/media/fat/Scripts/subtitle_key.pem")
+
+def ensure_cert():
+    if not CERT_FILE.exists() or not KEY_FILE.exists():
+        print("[ssl] 자체 서명 인증서 생성 중...")
+        subprocess.run([
+            "openssl", "req", "-x509", "-newkey", "rsa:2048",
+            "-keyout", str(KEY_FILE),
+            "-out", str(CERT_FILE),
+            "-days", "3650", "-nodes",
+            "-subj", "/CN=MiSTer"
+        ], check=True, capture_output=True)
+        print("[ssl] 인증서 생성 완료")
 
 UNIX_SOCK   = "/tmp/mister_subtitle.sock"
 HTTP_PORT   = 18765
@@ -328,15 +344,22 @@ def main():
     claude_key = "설정됨" if cfg.get("claude_api_key") else "미설정"
     openai_key = "설정됨" if cfg.get("openai_api_key") else "미설정"
 
+    ensure_cert()
+
     print(f"\n=== MiSTer Subtitle Server ===")
-    print(f"  폰 웹앱  : http://{ip}:{HTTP_PORT}/")
+    print(f"  폰 웹앱  : https://{ip}:{HTTP_PORT}/")
     print(f"  Provider : {provider}")
     print(f"  Claude   : {claude_key}")
     print(f"  OpenAI   : {openai_key}")
     print(f"  정적파일 : {STATIC_DIR}")
+    print(f"  ※ 처음 접속 시 '안전하지 않음' 경고 → 고급 → 계속 선택")
     print(f"==============================\n")
 
-    HTTPServer(("0.0.0.0", HTTP_PORT), SubtitleHandler).serve_forever()
+    httpd = HTTPServer(("0.0.0.0", HTTP_PORT), SubtitleHandler)
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(str(CERT_FILE), str(KEY_FILE))
+    httpd.socket = ctx.wrap_socket(httpd.socket, server_side=True)
+    httpd.serve_forever()
 
 
 if __name__ == "__main__":
